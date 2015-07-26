@@ -1,0 +1,126 @@
+---
+title: "Intro to Choropleth using R"
+output: html_document
+---
+[Ari Lamstein](https://twitter.com/AriLamstein) did a 5-week email course on how to map census data in R. This is my attempt to create a single page version of the entire course.
+
+The R Package `choroplethr` is used for this exercise.
+
+###Installation of the required libraries
+```{r eval=FALSE}
+install.packages("choroplethr")
+install.packages("choroplethrMaps")
+```
+
+The library comes with some datasets. The dataset `df_pop_state` has population by state, and the dataset `df_state_demographics` has some demographic information by state. Now, let's load these two datasets
+
+```{r}
+library(choroplethr)
+data(df_pop_state)
+data(df_state_demographics)
+```
+
+###Our first choropleth
+This is as simple as calling the `state_choropleth` function from the `choroplethr` library.
+```{r eval=TRUE}
+state_choropleth(df_pop_state, title="2012 Population by State", legend="Population")
+```
+
+Let's try to look at those states whose population is less than 1 million.
+
+To do the data munging, let's use the `dplyr` package.
+
+```{r}
+library(dplyr)
+
+#Create two dataframes- one of states with less than 1 million population
+#and another of states with more than 1 million population
+
+states_w_less_than_1m <- df_pop_state %>%
+  filter(value < 1000000) %>% 
+  mutate(value="<1M")
+
+states_w_more_than_1m <- df_pop_state %>%
+  filter(!(region %in% states_w_less_than_1m$region)) %>%
+  mutate(value=">1M")
+
+#Merge the above two dataframes
+states_pop_seg_by_million <- data.frame(rbind(states_w_more_than_1m, states_w_less_than_1m))
+
+state_choropleth(states_pop_seg_by_million)
+```
+###Per-capita income by state
+The dataset `df_state_demographics` has *per_capita* data by state. Let's plot that now. Note that the `state_choropleth` function requires two columns: `region` and `value`. Let's create a new dataset with those two columns with `value` corresponding to the per-capita of the state.
+
+```{r eval=TRUE}
+#Display the column names of the dataset
+names(df_state_demographics)
+
+#Create a dataset with state and per capita
+df_state_percapita <- data.frame(region=df_state_demographics$region, value=df_state_demographics$per_capita_income)
+
+df_state_percapita$region <- as.character(df_state_percapita$region)
+
+#Plot it on the choropleth
+state_choropleth(df_state_percapita)
+```
+
+###Questions
+Take the demographic dataset and plot the following:
+
+* States by their proportion of black to white
+* States by their proportion of asian to hispanic
+
+##Mapping the population for each county
+
+Let's do the exercise, now at county-level. This is available in the `df_pop_county` dataset.
+
+```{r}
+data(df_pop_county)
+
+county_choropleth(df_pop_county)
+```
+
+How about zooming on just one state and looking into it? Let's zoom on california
+```{r}
+county_choropleth(df_pop_county, state_zoom="california")
+```
+
+##Mapping population of Zip codes in Manhattan
+
+For this, need to install `choroplethrZip` package. The package is huge. ~60MB. Keep that in mind.
+
+```{r}
+library(devtools)
+#Uncomment and run the package installation, if you don't have it
+#install_github("arilamstein/choroplethrZip@v1.3.0")
+library(choroplethrZip)
+```
+
+The `df_pop_zip` dataset has population by zip. Also, note that the package renders Zip Code Tabulated Areas rather than actual US Postal Zip Code. Also, note that a [mercator projection](https://en.wikipedia.org/wiki/Mercator_projection) is added.
+
+```{r}
+#install.packages("mapproj")
+library(mapproj)
+library(ggplot2)
+data(df_pop_zip)
+zip_choropleth(df_pop_zip, state_zoom = "new york", title="Population of New York State by county") + coord_map()
+```
+
+Need FIPS code of Manhattan to provide the county to zoom. Google it :)
+
+```{r}
+zip_choropleth(df_pop_zip, county_zoom = 36061) + coord_map()
+```
+
+Similarly, one can play with demographics at county level and get various insights. A lot of interesting data. 
+
+Have fun! 
+
+
+
+
+
+
+
+
